@@ -42,9 +42,9 @@ slug: Web/API/WebGL_API/Tutorial/Adding_2D_content_to_a_WebGL_context
 
 ### 着色器
 
-**着色器是**使用 [OpenGL ES 着色语言](http://www.khronos.org/registry/gles/specs/2.0/GLSL_ES_Specification_1.0.17.pdf)(**GLSL**) 编写的程序，它携带着绘制形状的顶点信息以及构造绘制在屏幕上像素的所需数据，换句话说，它负责记录着像素点的位置和颜色。
+**着色器是**使用 [OpenGL ES 着色语言](http://www.khronos.org/registry/gles/specs/2.0/GLSL_ES_Specification_1.0.17.pdf) (**GLSL**) 编写的程序，它读入绘制形状所需的顶点信息并生成绘制在屏幕上的像素数据，（所谓的像素数据）具体来说，就是像素点的位置和颜色。
 
-绘制 WebGL 时候有两种不同的着色器函数，**顶点着色器和片段着色器。**你需要通过用 GLSL 编写这些着色器，并将代码文本传递给 WebGL，使之在 GPU 执行时编译。顺便一提，顶点着色器和片段着色器的集合我们通常称之为**着色器程序。**
+绘制 WebGL 时候有两种不同的着色器函数，**顶点着色器**和**片段着色器**。你需要通过用 GLSL 编写这些着色器，并将代码文本传递给 WebGL，使编译它们使之能在 GPU 上执行。顺便一提，顶点着色器和片段着色器的组合我们通常称之为**着色器程序。**
 
 下面我们通过在 WebGL 环境绘制一个 2D 图像的例子快速介绍这两种着色器。
 
@@ -52,16 +52,16 @@ slug: Web/API/WebGL_API/Tutorial/Adding_2D_content_to_a_WebGL_context
 
 每次渲染一个形状时，顶点着色器会在形状中的每个顶点运行。它的工作是将输入顶点从原始坐标系转换到 WebGL 使用的[**裁剪空间**](/zh-CN/docs/Web/API/WebGL_API/WebGL_model_view_projection#裁剪空间)坐标系，其中每个轴的坐标范围从 -1.0 到 1.0，并且不考虑纵横比，实际尺寸或任何其他因素。
 
-顶点着色器需要对顶点坐标进行必要的转换，在每个顶点基础上进行其他调整或计算，然后通过将其保存在由 GLSL 提供的特殊变量（我们称为 gl_Position）中来返回变换后的顶点
+顶点着色器需要对顶点坐标进行必要的转换，在每个顶点上进行其他调整或计算，然后通过将其保存在由 GLSL 提供的特殊变量（名为 `gl_Position`）中来返回变换后的顶点。
 
-顶点着色器根据需要，也可以完成其他工作。例如，决定哪个包含 {{Glossary("texel")}} 面部纹理的坐标，可以应用于顶点；通过法线来确定应用到顶点的光照因子等。然后将这些信息存储在[变量（varyings)](/zh-CN/docs/Web/API/WebGL_API/Data#varyings)或[属性 (attributes)](/zh-CN/docs/Web/API/WebGL_API/Data#Attributes)属性中，以便与片段着色器共享
+顶点着色器根据需要，也可以完成其他工作。例如，决定哪个包含 {{Glossary("texel")}} 面部纹理的坐标，可以应用于顶点；通过法线来确定应用到顶点的光照因子等。这些信息可以存储在[变量](/zh-CN/docs/Web/API/WebGL_API/Data#varyings) (varyings) 或[属性](/zh-CN/docs/Web/API/WebGL_API/Data#Attributes) (attributes) 中，以便与片段着色器共享。
 
-以下的顶点着色器接收一个我们定义的属性（aVertexPosition）的顶点位置值。之后这个值与两个 4x4 的矩阵（uProjectionMatrix 和 uModelMatrix）相乘; 乘积赋值给 gl_Position。有关投影和其他矩阵的更多信息，[在这里您可能可以找到有帮助的文章](https://webglfundamentals.org/webgl/lessons/webgl-3d-perspective.html)。
+以下的顶点着色器从一个我们定义的属性 `aVertexPosition` 中接收顶点位置值。之后这个值与两个 4x4 的矩阵 (`uProjectionMatrix` 和 `uModelMatrix`) 相乘; 乘积赋值给 `gl_Position`。有关投影和其他矩阵的更多信息，[这篇文章可能有所帮助](https://webglfundamentals.org/webgl/lessons/webgl-3d-perspective.html)。
 
 > **备注：** 添加下面代码到 `main()` 函数中：
 
 ```js
-// Vertex shader program
+// 顶点着色器
 
   const vsSource = `
     attribute vec4 aVertexPosition;
@@ -75,13 +75,15 @@ slug: Web/API/WebGL_API/Tutorial/Adding_2D_content_to_a_WebGL_context
   `;
 ```
 
-这个例子中，我们没有计算任何光照效果，因为我们还没有应用到场景，它将后面的 [WebGL 光照](/zh-CN/docs/Web/API/WebGL_API/Tutorial/Lighting_in_WebGL)章节介绍。同样我们也还没应用任何纹理，这将在[WebGL 添加纹理](/zh-CN/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL)章节补充。
+值得注意的是，我们为顶点位置使用了一个 `vec4` 属性，但它实际上并没有作为一个 4 分量向量使用；也就是说，根据传入的顶点数据它可以作为 `vec2` 或 `vec3` 来处理。但是当我们进行运算时，我们需要它是一个 `vec4` （因为需要与矩阵相乘），所以为了不在每次计算使显式将它转换为 `vec4` （性能考虑），我们将从一开始就将它定义为 `vec4` 。
+
+这个例子中，我们没有计算任何光照效果，因为我们还没有应用到场景，它将后面的 [WebGL 光照](/zh-CN/docs/Web/API/WebGL_API/Tutorial/Lighting_in_WebGL)章节介绍。同样我们也还没应用任何纹理，这将在[为 WebGL 添加纹理](/zh-CN/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL)章节补充。
 
 #### 片段着色器
 
-**片段着色器**在顶点着色器处理完图形的顶点后，会被要绘制的每个图形的每个像素点调用一次。它的职责是确定像素的颜色，通过指定应用到像素的纹理元素（也就是图形纹理中的像素），获取纹理元素的颜色，然后将适当的光照应用于颜色。之后颜色存储在特殊变量 gl_FragColor 中，返回到 WebGL 层。该颜色将最终绘制到屏幕上图形对应像素的对应位置。
+**片段着色器**在顶点着色器处理完图形的顶点后，会在要绘制的每个图形的每个像素点上调用一次。它的职责是确定像素的颜色和应用到像素的纹理（也就是获取图片纹理中的像素），然后将适当的光照应用于颜色。之后颜色存储在特殊变量 `gl_FragColor` 中，返回到 WebGL。该颜色将最终绘制到屏幕上的对应位置。
 
-在这种情况下，我们每次都会返回白色，因为我们只是在画一个白色的正方形，没有使用光照。
+在本教程中，我们每次都会返回白色，因为我们只是在画一个白色的正方形，并且没有使用光照。
 
 > **备注：** 添加下面代码到 `main()` 函数中：
 
@@ -95,7 +97,7 @@ const fsSource = `
 
 ### 初始化着色器
 
-现在我们已经定义了两个着色器，我们需要将它们传递给 WebGL，编译并将它们连接在一起。下面的代码通过调用 `loadShader()`，为着色器传递类型和来源，创建了两个着色器。然后创建一个附加着色器的程序，将它们连接在一起。如果编译或链接失败，代码将弹出 alert。
+现在我们已经定义了两个着色器，我们需要将它们传递给 WebGL，编译并将它们链接在一起。下面的代码通过调用 `loadShader()`，为着色器传递类型和来源创建了两个着色器。然后创建一个着色器程序，附加了这两个着色器并将它们链接在一起。如果编译或链接失败，将弹出警告窗口。
 
 > **备注：** 将下面两个函数添加到“webgl-demo.js”文件中：
 
@@ -148,31 +150,32 @@ function loadShader(gl, type, source) {
 }
 ```
 
-loadShader 函数将 WebGL 上下文，着色器类型和`源码`作为参数输入，然后按如下步骤创建和编译着色器：
+`loadShader` 函数将 WebGL 上下文，着色器类型和源码作为参数输入，然后按如下步骤创建和编译着色器：
 
-1. 调用{{domxref("WebGLRenderingContext.createShader", "gl.createShader()")}}.创建一个新的着色器。
+1. 调用 {{domxref("WebGLRenderingContext.createShader", "gl.createShader()")}} 创建一个新的着色器。
 
-2. 调用{{domxref("WebGLRenderingContext.shaderSource", "gl.shaderSource()")}}.将源代码发送到着色器。
+2. 调用 {{domxref("WebGLRenderingContext.shaderSource", "gl.shaderSource()")}} 将源代码发送到着色器。
 
-3. 一旦着色器获取到源代码，就使用{{domxref("WebGLRenderingContext.compileShader", "gl.compileShader()")}}.进行编译。
+3. 一旦着色器获取到源代码，就使用 {{domxref("WebGLRenderingContext.compileShader", "gl.compileShader()")}} 进行编译。
 
-4. 为了检查是否成功编译了着色器，将检查着色器参数 gl.COMPILE_STATUS 状态。通过调用{{domxref("WebGLRenderingContext.getShaderParameter", "gl.getShaderParameter()")}}获得它的值，并指定着色器和我们想要检查的参数的名字（gl.COMPILE_STATUS）。如果返回错误，则着色器无法编译，因此通过{{domxref("WebGLRenderingContext.getShaderInfoLog", "gl.getShaderInfoLog()")}}从编译器中获取日志信息并 alert，然后删除着色器返回 null，表明加载着色器失败。
+4. 为了检查是否成功编译了着色器，将检查着色器参数 `gl.COMPILE_STATUS` 状态。通过调用 {{domxref("WebGLRenderingContext.getShaderParameter", "gl.getShaderParameter()")}} 获得它的值，并指定着色器和我们想要检查的参数的名字 (`gl.COMPILE_STATUS`)。如果返回 `false`，则着色器编译失败，因此通过 {{domxref("WebGLRenderingContext.getShaderInfoLog", "gl.getShaderInfoLog()")}} 从编译器中获取日志信息并发送警告，然后删除着色器返回 null，表明加载着色器失败。
 
-5. 如果着色器被加载并成功编译，则返回编译的着色器。
+5. 如果着色器被加载并成功编译，则返回编译好的着色器。
 
-我们可以像这样调用这段代码
-
-> **备注：** 添加下面代码到 `main()` 函数中：
+**备注：** 添加下面代码到 `main()` 函数中：
 
 ```js
-  const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+// 初始化一个着色器程序；这是为顶点和其他元素设置所有效果的地方
+const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 ```
 
-在创建着色器程序之后，我们需要查找 WebGL 返回分配的输入位置。在上述情况下，我们有一个属性和两个 [Uniform](/zh-CN/docs/Web/API/WebGL_API/Data#uniforms) 。属性从缓冲区接收值。顶点着色器的每次迭代都从分配给该属性的缓冲区接收下一个值。uniform 类似于 JavaScript 全局变量。它们在着色器的所有迭代中保持相同的值。由于属性和统一的位置是特定于单个着色器程序的，因此我们将它们存储在一起以使它们易于传递
+在创建着色器程序之后，我们需要查找 WebGL 返回分配的输入位置。在上述情况下，我们有一个 attribute 和两个 [uniform](/zh-CN/docs/Web/API/WebGL_API/Data#uniforms) 。attribute 从缓冲区接收值。顶点着色器的每次迭代都从分配给该 attribute 的缓冲区接收下一个值。uniform 类似于 JavaScript 全局变量。它们在着色器的所有迭代中保持相同的值。由于 attribute 和 uniform 的位置是特定于单个着色器程序的，因此我们将它们存储在一起以使它们易于传递：
 
 > **备注：** 添加下面代码到 `main()` 函数中：
 
 ```js
+// 集中了一个着色器程序所需的所有信息
+// 查找 attribute 和 uniform 的位置
 const programInfo = {
     program: shaderProgram,
     attribLocations: {
